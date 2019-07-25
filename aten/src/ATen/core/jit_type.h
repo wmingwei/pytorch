@@ -172,7 +172,7 @@ public:
   TypePtr withContained(std::vector<TypePtr> contained_types) {
     auto current_contained = containedTypes();
     AT_ASSERT(current_contained.size() == contained_types.size());
-    if(current_contained.equals(contained_types)) {
+    if (current_contained.equals(contained_types)) {
       return shared_from_this();
     }
     return createWithContained(std::move(contained_types));
@@ -1432,6 +1432,10 @@ struct CAFFE2_API ClassType : public NamedType {
     methods_.push_back(method);
   }
 
+  TypePtr withContained(std::vector<TypePtr> contained_types) {
+    return refine(std::move(contained_types));
+  }
+
   std::shared_ptr<CompilationUnit> compilation_unit();
   std::shared_ptr<const CompilationUnit> compilation_unit() const;
 
@@ -1526,17 +1530,6 @@ inline TypePtr unshapedType(const TypePtr& type) {
   if (type->kind() == TypeKind::DimensionedTensorType ||
       type->kind() == TypeKind::CompleteTensorType) {
     return TensorType::get();
-  }
-  if (type->kind() == TypeKind::ClassType) {
-    auto class_type = type->expect<ClassType>();
-    auto unshaped_class = ClassType::create(
-        class_type->qualname(), class_type->compilation_unit());
-
-    for (auto name : class_type->attributeNames()) {
-      auto old_type = class_type->getAttribute(name);
-      unshaped_class->addAttribute(name, unshapedType(old_type), false);
-    }
-    return unshaped_class;
   }
   return type->withContained(fmap(type->containedTypes(), unshapedType));
 }

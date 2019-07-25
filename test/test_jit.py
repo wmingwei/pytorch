@@ -6542,7 +6542,7 @@ a")
             for out, ref in zip(final_hiddens_fp16, ref_hid):
                 torch.testing.assert_allclose(out, ref)
 
-            def compare_quantized_unquantized(ScriptWrapper, cell): 
+            def compare_quantized_unquantized(ScriptWrapper, cell):
                 wrapper = ScriptWrapper(cell)
 
                 # Compare quantize scripted module to unquantized
@@ -12754,17 +12754,23 @@ a")
     def test_attribute_serialization(self):
         tester = self
 
+        @torch.jit.script
+        class X(object):
+            def __init__(self):
+                self.x = torch.ones(2, 2)
+
         class M(torch.jit.ScriptModule):
             def __init__(self):
                 super(M, self).__init__()
                 for name, value, the_type in tester.get_pickle_values():
                     setattr(self, name, torch.jit.Attribute(value, the_type))
+                self.x = torch.jit.Attribute(X(), X)
 
             @torch.jit.script_method
             def forward(self):
                 return (self.dict, self.float, self.int, self.bool, self.tuple,
                         self.list, self.int_list, self.tensor_list, self.bool_list,
-                        self.float_list, self.str_list, self.none)
+                        self.float_list, self.str_list, self.none, self.x.x)
 
         m = M()
         imported_m = self.getExportImportCopy(m)
