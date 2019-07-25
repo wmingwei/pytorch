@@ -80,6 +80,10 @@ def copy_to_script_module(original, stubs):
     # Copy links to Python methods so they can be resolved when compiling
     for name in dir(original):
         item = getattr(original, name)
+        if hasattr(script_module, name):
+            # Skip Python builtins and all the module methods that are already
+            # attached to this since it inherits from nn.Module
+            continue
         if inspect.ismethod(item):
             setattr(script_module, name, item)
 
