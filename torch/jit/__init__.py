@@ -1,36 +1,41 @@
+import torch
 import torch._C
-from torch.autograd import Variable, function
-from torch.serialization import validate_cuda_device
-from torch.nn import Module, ModuleList, Parameter, Sequential
-from torch.jit.frontend import get_jit_class_def, get_jit_def, get_default_args
+import torch._jit_internal as _jit_internal
 import torch.backends.cudnn as cudnn
 import torch.jit.annotations
-import torch._jit_internal as _jit_internal
+import torch.testing
+import torch.jit._recursive as _recursive
+
+
 from torch._jit_internal import _qualified_name
+from torch.autograd import Variable, function
+from torch.jit.frontend import get_jit_class_def, get_jit_def, get_default_args
+from torch.nn import Module, ModuleList, Parameter, Sequential
+from torch.serialization import validate_cuda_device
 from torch._six import PY2, PY37, with_metaclass, get_function_from_type, \
     string_classes
 from ..nn.modules.utils import _single, _pair, _triple, _quadruple, \
     _list_with_default
-import torch.testing
-
-import math
-from collections import OrderedDict, namedtuple
-import textwrap
-import sys
-import warnings
-import weakref
-import types
-import contextlib
-import os
-import functools
-import copy
-import collections
-import inspect
-import pickle
 
 # These are imported so users can access them from the `torch.jit` module
 from torch._jit_internal import Final  # noqa: F401
 from torch._jit_internal import ignore, export  # noqa: F401
+
+import collections
+import contextlib
+import copy
+import functools
+import inspect
+import math
+import os
+import pickle
+import sys
+import textwrap
+import types
+import warnings
+import weakref
+
+from collections import OrderedDict, namedtuple
 
 if sys.version_info[0] > 2:
     import pathlib
@@ -988,7 +993,7 @@ def script(obj, optimize=None, _frames_up=0, _rcb=None):
         warnings.warn("`optimize` is deprecated and has no effect. Use `with torch.jit.optimized_execution() instead")
 
     if isinstance(obj, torch.nn.Module):
-        return _convert_to_script_module(obj)
+        return _recursive.recursive_script(obj)
 
     qualified_name = _qualified_name(obj)
     if inspect.isclass(obj):
@@ -1641,12 +1646,12 @@ class _ConstModuleList(ScriptModule):
         if isinstance(modules, OrderedDict):
             for key, module in modules.items():
                 if isinstance(module, torch.nn.Module):
-                    module = _convert_to_script_module(module)
+                    module = _recursive.recursive_script(module)
                 self.add_module(key, module)
         else:
             for i, module in enumerate(modules):
                 if isinstance(module, torch.nn.Module):
-                    module = _convert_to_script_module(module)
+                    module = _recursive.recursive_script(module)
                 self.add_module(str(i), module)
 
     def __getitem__(self, idx):

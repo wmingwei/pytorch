@@ -6540,7 +6540,7 @@ a")
             for out, ref in zip(final_hiddens_fp16, ref_hid):
                 torch.testing.assert_allclose(out, ref)
 
-            def compare_quantized_unquantized(ScriptWrapper, cell): 
+            def compare_quantized_unquantized(ScriptWrapper, cell):
                 wrapper = ScriptWrapper(cell)
 
                 # Compare quantize scripted module to unquantized
