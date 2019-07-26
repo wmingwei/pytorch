@@ -4,16 +4,15 @@ import torch._jit_internal as _jit_internal
 import torch.backends.cudnn as cudnn
 import torch.jit.annotations
 import torch.testing
-import torch.jit._recursive as _recursive
+import torch.jit._recursive
 
 
 from torch._jit_internal import _qualified_name
 from torch.autograd import Variable, function
 from torch.jit.frontend import get_jit_class_def, get_jit_def, get_default_args
-from torch.nn import Module, ModuleList, Parameter, Sequential
+from torch.nn import Module, ModuleList, Sequential
 from torch.serialization import validate_cuda_device
-from torch._six import PY2, PY37, with_metaclass, get_function_from_type, \
-    string_classes
+from torch._six import PY2, PY37, with_metaclass, string_classes
 from ..nn.modules.utils import _single, _pair, _triple, _quadruple, \
     _list_with_default
 
@@ -33,7 +32,6 @@ import sys
 import textwrap
 import types
 import warnings
-import weakref
 
 from collections import OrderedDict, namedtuple
 
@@ -993,7 +991,7 @@ def script(obj, optimize=None, _frames_up=0, _rcb=None):
         warnings.warn("`optimize` is deprecated and has no effect. Use `with torch.jit.optimized_execution() instead")
 
     if isinstance(obj, torch.nn.Module):
-        return _recursive.recursive_script(obj)
+        return torch.jit.torch.jit._recursive.recursive_script(obj)
 
     qualified_name = _qualified_name(obj)
     if inspect.isclass(obj):
@@ -1646,12 +1644,12 @@ class _ConstModuleList(ScriptModule):
         if isinstance(modules, OrderedDict):
             for key, module in modules.items():
                 if isinstance(module, torch.nn.Module):
-                    module = _recursive.recursive_script(module)
+                    module = torch.jit._recursive.recursive_script(module)
                 self.add_module(key, module)
         else:
             for i, module in enumerate(modules):
                 if isinstance(module, torch.nn.Module):
-                    module = _recursive.recursive_script(module)
+                    module = torch.jit._recursive.recursive_script(module)
                 self.add_module(str(i), module)
 
     def __getitem__(self, idx):

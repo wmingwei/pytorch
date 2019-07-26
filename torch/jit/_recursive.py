@@ -4,7 +4,7 @@ import collections
 
 import torch._jit_internal as _jit_internal
 from torch.nn import Module, ModuleList, Parameter, Sequential
-from torch._six import PY2, PY37, with_metaclass, get_function_from_type
+from torch._six import get_function_from_type
 
 
 def copy_to_script_module(original, stubs):
@@ -14,7 +14,7 @@ def copy_to_script_module(original, stubs):
     """
     if not hasattr(original, '_parameters'):
         raise RuntimeError("'{}' has not been initialized, did you forget to call 'super()'?"
-                            .format(type(original).__name__))
+                           .format(type(original).__name__))
 
     qualified_name = torch.jit._qualified_name(type(original))
     script_module = torch.jit.ScriptModule(_qualified_name=qualified_name)
