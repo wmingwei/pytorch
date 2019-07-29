@@ -9,8 +9,10 @@ checking quantization api and properties of resulting modules.
 
 import torch
 import torch.nn.quantized as nnq
+import torch.nn.quantized.dynamic as nnqd
 from common_utils import TestCase
-from torch.quantization import QuantWrapper, QuantStub, DeQuantStub, default_qconfig
+from torch.quantization import QuantWrapper, QuantStub, DeQuantStub, default_qconfig, \
+    add_observer, propagate_qconfig, convert, DEFAULT_DYNAMIC_MODULE_MAPPING
 
 def test_only_eval_fn(model, calib_data):
     r"""
@@ -47,6 +49,13 @@ def test_only_train_fn(model, train_data, loss_fn=_default_loss_fn):
             correct += (predicted == target).sum().item()
     return train_loss, correct, total
 
+def convert_dynamic(module):
+    convert(module, DEFAULT_DYNAMIC_MODULE_MAPPING)
+
+def prepare_dynamic(model, qconfig_dict=None):
+    propagate_qconfig(model, qconfig_dict)
+    add_observer(model)
+    return model
 
 # QuantizationTestCase used as a base class for testing quantization on modules
 class QuantizationTestCase(TestCase):
@@ -97,6 +106,13 @@ class QuantizationTestCase(TestCase):
         self.assertEqual(type(mod.module), nnq.Linear)
         self.assertEqual(mod.module.bias.dtype, torch.qint32)
         self.checkQuantDequant(mod)
+
+    def checkDynamicQuantizedLinear(self, mod):
+        r"""Checks that mod has been swapped for an nnqd.Linear
+            module, the bias is float.
+        """
+        self.assertEqual(type(mod), nnqd.Linear)
+        self.assertEqual(mod.bias.dtype, torch.float)
 
     def checkLinear(self, mod):
         self.assertEqual(type(mod), torch.nn.Linear)

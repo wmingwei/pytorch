@@ -6,10 +6,12 @@ from __future__ import unicode_literals
 import torch
 import torch.nn.quantized as nnq
 import torch.nn._intrinsic.quantized as nnq_fused
+import torch.nn.quantized.dynamic as nnqd
 import torch.nn.quantized.functional as qF
 from torch.nn.quantized.modules import Conv2d
 from torch.nn._intrinsic.quantized import ConvReLU2d
 from common_utils import TestCase, run_tests, tempfile
+from common_quantized import _calculate_dynamic_qparams
 from hypothesis import given
 from hypothesis import strategies as st
 
@@ -34,6 +36,67 @@ class FunctionalAPITest(TestCase):
 
 
 class ModuleAPITest(TestCase):
+    @given(
+        batch_size=st.integers(1, 5),
+        in_features=st.integers(16, 32),
+        out_features=st.integers(4, 8),
+        use_bias=st.booleans(),
+    )
+    def test_dynamic_linear_api(self, batch_size, in_features, out_features, use_bias):
+        """test API functionality for nn.quantized.dynamic.Linear"""
+        W = torch.rand(out_features, in_features).float()
+        W_scale, W_zp = _calculate_dynamic_qparams(W, torch.qint8)
+        W_q = torch.quantize_linear(W, W_scale, W_zp, torch.qint8)
+        W_pack_col_offset = torch.ops.quantized.fbgemm_linear_prepack(W_q)
+        X = torch.rand(batch_size, in_features).float()
+        B = torch.rand(out_features).float() if use_bias else None
+        qlinear = nnqd.Linear(in_features, out_features)
+        qlinear._packed_weight = W_pack_col_offset
+        qlinear.bias = B
+        Z_dq = qlinear(X)
+        # Check if the module implementation matches calling the
+        # ops directly
+        Z_ref = torch.ops.quantized.fbgemm_linear_dynamic(X, W_pack_col_offset, B)
+        self.assertEqual(Z_ref, Z_dq)
+
+        # Test serialization of dynamic quantized Linear Module using state_dict
+        model_dict = qlinear.state_dict()
+        self.assertEqual(model_dict['weight'], W_q)
+        if use_bias:
+            self.assertEqual(model_dict['bias'], B)
+        with tempfile.NamedTemporaryFile() as f:
+            torch.save(model_dict, f)
+            f.seek(0)
+            loaded_dict = torch.load(f)
+        for key in model_dict:
+            self.assertEqual(model_dict[key], loaded_dict[key])
+        loaded_qlinear = nnqd.Linear(in_features, out_features)
+        loaded_qlinear.load_state_dict(loaded_dict)
+
+        linear_unpack = torch.ops.quantized.fbgemm_linear_unpack
+        self.assertEqual(linear_unpack(qlinear._packed_weight),
+                         linear_unpack(loaded_qlinear._packed_weight))
+        if use_bias:
+            self.assertEqual(qlinear.bias, loaded_qlinear.bias)
+        self.assertTrue(dir(qlinear) == dir(loaded_qlinear))
+        self.assertTrue(hasattr(qlinear, '_packed_weight'))
+        self.assertTrue(hasattr(loaded_qlinear, '_packed_weight'))
+        self.assertTrue(hasattr(qlinear, 'weight'))
+        self.assertTrue(hasattr(loaded_qlinear, 'weight'))
+        self.assertEqual(qlinear.weight, loaded_qlinear.weight)
+        self.assertEqual(qlinear.weight, torch.ops.quantized.fbgemm_linear_unpack(qlinear._packed_weight))
+        Z_dq2 = qlinear(X)
+        self.assertEqual(Z_dq, Z_dq2)
+
+        # test serialization of module directly - will add this later
+        # with tempfile.NamedTemporaryFile() as f:
+        #     torch.save(qLinear, f)
+        #     f.seek(0)
+        #     loaded = torch.load(f)
+        # state = qLinear.__getstate__()
+        # compareUnpackedWeight(qLinear._packed_weight, loaded._packed_weight)
+        # self.assertEqual(qLinear.bias, loaded.bias)
+
     @given(
         batch_size=st.integers(1, 5),
         in_features=st.integers(16, 32),

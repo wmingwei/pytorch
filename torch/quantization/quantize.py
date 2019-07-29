@@ -1,6 +1,7 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 import torch.nn as nn
 import torch.nn.quantized as nnq
+import torch.nn.quantized.dynamic as nnqd
 import torch.nn.qat as qat
 import torch
 
@@ -220,6 +221,15 @@ def quantize_qat(model, run_fn, run_args, qconfig_dict=None):
     convert(model)
     return model
 
+def quantize_dynamic(model, qconfig_dict=None):
+    r"""Converts a float model to dynamic quantized model. Do dynamic training and output a quantized model.
+    """
+    model.eval()
+    propagate_qconfig(model, qconfig_dict)
+    add_observer(model)
+    convert(model, DEFAULT_DYNAMIC_MODULE_MAPPING)
+    return model
+
 # Map for swapping float module to quantized ones
 DEFAULT_MODULE_MAPPING = {
     torch.nn.Linear: nnq.Linear,
@@ -236,6 +246,10 @@ DEFAULT_MODULE_MAPPING = {
 DEFAULT_QAT_MODULE_MAPPING = {
     torch.nn.Linear: qat.Linear,
     torch.nn.Conv2d: qat.Conv2d,
+}
+
+DEFAULT_DYNAMIC_MODULE_MAPPING = {
+    torch.nn.Linear: nnqd.Linear
 }
 
 def convert(module, mapping=DEFAULT_MODULE_MAPPING):
