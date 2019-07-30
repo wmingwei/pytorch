@@ -28,5 +28,15 @@ _all__ = [
     # QConfig
     'QConfig', 'default_qconfig',
     # QAT utilities
-    'default_qat_qconfig', 'prepare_qat', 'quantize_qat'
+    'default_qat_qconfig', 'prepare_qat', 'quantize_qat',
+    # module transformations
+    'fuse_modules',
 ]
+
+
+# Generated files.
+
+from ._generated.QAddGen import AddGen as Add  # noqa: F401
+from ._generated.QAddGen import QAddGen as QAdd  # noqa: F401
+
+__all__ += ['Add', 'QAdd']

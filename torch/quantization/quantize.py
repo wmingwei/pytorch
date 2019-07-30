@@ -227,6 +227,8 @@ DEFAULT_MODULE_MAPPING = {
     torch.nn.Conv2d: nnq.Conv2d,
     QuantStub: nnq.Quantize,
     DeQuantStub: nnq.DeQuantize,
+    # Generated modules:
+    torch.quantization.Add: torch.quantization.QAdd,
     # QAT modules:
     qat.Linear: nnq.Linear,
     qat.Conv2d: nnq.Conv2d,
